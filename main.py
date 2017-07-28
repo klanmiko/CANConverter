@@ -17,7 +17,7 @@ for f in os.listdir(path):
         can = first[2]
         string = first[3]
         s = [string[i:i+2] for i in range(0, len(string), 2)]
-        with open("New/"+f, 'w') as output:
+        with open("New/"+f, 'wb') as output:
             writer = csv.writer(output)
             firstrow = [can, 0]
             firstrow.extend(s)

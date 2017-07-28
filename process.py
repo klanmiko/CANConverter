@@ -14,23 +14,21 @@ class State:
     brake = 0
     temp_array = [0, 0, 0, 0, 0, 0]
     state = 0
-    soc = 0
     bms_status = 'No Error'
     min_volt = 0
     max_volt = 0
     pack_volt = 0
     curr_dir = 0
-    curr_amp = 0
     def printHeader(self, writer):
-        writer.writerow(['Timestamp', 'State', 'Throttle', 'Brake',
+        writer.writerow(['Timestamp', 'State', 'Throttle (%)', 'Brake (%)',
                          'Cell 1', 'Cell 2', 'Cell 3', 'Cell 4', 'Cell 5', 'Cell 6',
-                         'SOC', 'BMS State', 'Cell Min Voltage', 'Cell Max Voltage', 'Pack Voltage',
-                         'Charging', 'Current Flow'])
+                         'BMS State', 'Cell Min Voltage (mV)', 'Cell Max Voltage (mV)', 'Pack Voltage (mV)',
+                         'Charging'])
     def printRow(self, writer):
         part = [self.time, self.printState(self.state), self.throttle, self.brake]
         part.extend(self.temp_array)
-        part.extend([self.soc, self.bms_status, self.min_volt, self.max_volt, self.pack_volt,
-                     self.curr_dir, self.curr_amp])
+        part.extend([self.bms_status, self.min_volt, self.max_volt, self.pack_volt,
+                     self.curr_dir])
         writer.writerow(part)
     def printState(self, state):
         if state == 0:
@@ -49,15 +47,15 @@ class Filter:
     state = State()
     shouldWrite = False
     def read512(self, data):
-        self.state.throttle = str(int(data[1] + data[2], 16) / float(0x7FFF) * 100) + '%'
+        self.state.throttle = int(data[1] + data[2], 16) / float(0x7FFF) * 100
     def read513(self, data):
-        self.state.brake = str(int(data[1] + data[2], 16)) + '%'
+        self.state.brake = int(data[1] + data[2], 16)
     def read1574(self, data):
         self.state.state = int(data[0], 16)
     def read904(self, data):
-        self.state.min_volt = str(int(data[0] + data[1], 16)) + 'mV'
-        self.state.max_volt = str(int(data[2] + data[3], 16)) + 'mV'
-        self.state.pack_volt = str(int(data[4] + data[5] + data[6] + data[7], 16)) + 'mV'
+        self.state.min_volt = int(data[0] + data[1], 16)
+        self.state.max_volt = int(data[2] + data[3], 16)
+        self.state.pack_volt = int(data[4] + data[5] + data[6] + data[7], 16)
     def read1160(self, data):
         self.state.temp_array = map(int, data[:6])
     def read648(self, data):
@@ -66,11 +64,9 @@ class Filter:
             self.state.curr_dir = 'discharging'
         else:
             self.state.curr_dir = 'charging'
-        self.state.curr_amp = str(int(data[1] + data[2], 16)) + 'A'
     def read392(self, data):
         status = int(data[2] + data[3], 16)
         self.state.bms_status = ''
-        self.state.soc = int(data[1], 16)
         if (status & 0x01) == 0x01:
             self.state.bms_status = 'Charge mode '
         if (status & 0x02) == 0x02:
@@ -138,7 +134,7 @@ for f in os.listdir(path):
         filter = Filter()
         reader = csv.reader(infile)
         print 'Reading: ' + f
-        with open("Filtered/"+f, 'w') as output:
+        with open("Filtered/"+f, 'wb') as output:
             writer = csv.writer(output)
             filter.state.printHeader(writer)
             for row in reader:
